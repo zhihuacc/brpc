@@ -121,7 +121,6 @@ set(DYNAMIC_LIB
     ${THRIFT_LIB}
     ${THRIFTNB_LIB}
     dl
-    glog  # need this if brpc is built with WITH_GLOG=ON
     )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
