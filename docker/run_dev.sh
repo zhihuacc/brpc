@@ -11,4 +11,4 @@ fi
 
 # --privileged is required so that gdb works properly.
 # change greadlink to readlink if in MacOS
-docker run --privileged --name $2 -it --rm -v $(readlink -f ..):/brpc $1
+docker run --privileged --name $2 -it --rm -v $(readlink -f ..):/workspace $1
