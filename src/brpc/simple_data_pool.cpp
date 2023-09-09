@@ -96,6 +96,7 @@ void* SimpleDataPool::Borrow() {
             return _pool[--_size];
         }
     }
+    // Create a new one if all in the pool is borrowed.
     void* data = _factory->CreateData();
     if (data) {
         _ncreated.fetch_add(1,  butil::memory_order_relaxed);
@@ -112,6 +113,8 @@ void SimpleDataPool::Return(void* data) {
     }
     std::unique_lock<butil::Mutex> mu(_mutex);
     if (_capacity == _size) {
+        // if the pool is full of free objects, expand it and insert this obj.
+        // NOTE: this strategy may consume up all OS memory and lead to crash.
         const unsigned new_cap = (_capacity <= 1 ? 128 : (_capacity * 3 / 2));
         void** new_pool = (void**)malloc(new_cap * sizeof(void*));
         if (NULL == new_pool) {
