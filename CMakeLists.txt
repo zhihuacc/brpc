@@ -34,7 +34,7 @@ if(POLICY CMP0042)
     cmake_policy(SET CMP0042 NEW)
 endif()
 
-set(BRPC_VERSION 1.5.0)
+set(BRPC_VERSION 1.6.0)
 
 SET(CPACK_GENERATOR "DEB")
 SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "brpc authors")
@@ -66,7 +66,10 @@ endif()
 
 if(WITH_THRIFT)
     set(THRIFT_CPP_FLAG "-DENABLE_THRIFT_FRAMED_PROTOCOL")
-    set(THRIFT_LIB "thrift")
+    find_library(THRIFT_LIB NAMES thrift)
+    if (NOT THRIFT_LIB)
+        message(FATAL_ERROR "Fail to find Thrift")
+    endif()
 endif()
 
 set(WITH_RDMA_VAL "0")
@@ -224,7 +227,6 @@ set(DYNAMIC_LIB
     ${PROTOC_LIB}
     ${CMAKE_THREAD_LIBS_INIT}
     ${THRIFT_LIB}
-    ${THRIFTNB_LIB}
     ${OPENSSL_CRYPTO_LIBRARY}
     dl
     z)
