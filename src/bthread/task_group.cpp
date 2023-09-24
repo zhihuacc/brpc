@@ -147,13 +147,24 @@ void TaskGroup::run_main_task() {
         get_cumulated_cputime_from_this, this);
     std::unique_ptr<bvar::PerSecond<bvar::PassiveStatus<double> > > usage_bvar;
 
+    //zh dummy == 'this' == tls_task_group.
     TaskGroup* dummy = this;
     bthread_t tid;
+    //zh Pop the next bthread task from the queues to schedule.
     while (wait_task(&tid)) {
+        //zh Reday to switch from main_meta to tid
+        //zh What happened to the cur task_meta that is gonna suspended ? It's not pushed to queues ?
         TaskGroup::sched_to(&dummy, tid);
+        //zh tid has yielded or finished and switch back to cur coroutine.
+        //zh sched_to() will update dummy to tls_task_group right before its return if cur coroutine is stolen by a new TaskGroup.
+        //zh So dummy is always equal to tls_task_group.
         DCHECK_EQ(this, dummy);
+        //zh After switching back, _cur_meta must be a main task, it's stack must be _main_stack.
+        //zh NOTE Why _cur_meta->tid could be different from _main_tid ?
         DCHECK_EQ(_cur_meta->stack, _main_stack);
         if (_cur_meta->tid != _main_tid) {
+            //zh NOTE Why _cur_meta->stack == _main_stack but _cur_meta->tid != _main_tid ?
+            //zh task_runner() --> ending_sched() --> sched_to()
             TaskGroup::task_runner(1/*skip remained*/);
         }
         if (FLAGS_show_per_worker_usage_in_vars && !usage_bvar) {
@@ -336,6 +347,7 @@ void TaskGroup::task_runner(intptr_t skip_remained) {
 
         g->_control->_nbthreads << -1;
         g->set_remained(TaskGroup::_release_last_context, m);
+        //zh ending_sched() will do sched_to() again and will jump to main task if no other tasks to run.
         ending_sched(&g);
 
     } while (g->_cur_meta->tid != g->_main_tid);
@@ -568,6 +580,7 @@ void TaskGroup::sched(TaskGroup** pg) {
 }
 
 void TaskGroup::sched_to(TaskGroup** pg, TaskMeta* next_meta) {
+    //zh sched_to() is a static func, so no 'this' is passed in.
     TaskGroup* g = *pg;
 #ifndef NDEBUG
     if ((++g->_sched_recursive_guard) > 1) {
@@ -606,18 +619,28 @@ void TaskGroup::sched_to(TaskGroup** pg, TaskMeta* next_meta) {
 
         if (cur_meta->stack != NULL) {
             if (next_meta->stack != cur_meta->stack) {
+                //zh meta->stack->context keeps the addr of the stack top
+                //zh 1. This moment is still in cur pthread worker.
                 jump_stack(cur_meta->stack, next_meta->stack);
+                //zh 2. Resume cur coroutine after switching to and back from another coroutine.
+                //zh Note: when TaskGroup is changed ?
+
                 // probably went to another group, need to assign g again.
                 g = BAIDU_GET_VOLATILE_THREAD_LOCAL(tls_task_group);
             }
 #ifndef NDEBUG
             else {
+                //zh a TaskMeta->stack is set to g->_main_stack when it's a pthread task or out of memeory.
+                //zh so if two tasks shared the same stack, it must be _main_stack, and the two tasks are pthread tasks.
+
                 // else pthread_task is switching to another pthread_task, sc
                 // can only equal when they're both _main_stack
                 CHECK(cur_meta->stack == g->_main_stack);
             }
 #endif
         }
+        //zh cur_meta is a pthread task if cur_meta->stack is null.
+
         // else because of ending_sched(including pthread_task->pthread_task)
     } else {
         LOG(FATAL) << "bthread=" << g->current_tid() << " sched_to itself!";

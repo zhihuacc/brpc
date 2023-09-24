@@ -334,6 +334,15 @@ __asm (
 
 #endif
 
+// rdi: 1st arg. Here is &from->context, which is the address where the current coroutine stack top (esp) will be saved.
+// rsi: 2nd arg. Here is to->context, which is the next coroutine stack top.
+// rdx: 3rd arg. Here is intptr_t vp, which is the arg passed to coroutines' entry fn task_runner().
+// rcx: 4th arg.
+// rax: the return value.
+// rsp/esp: stack top pointer
+// rbp/ebp: stack base pointer
+// rip/eip: instruction pointer
+
 #if defined(BTHREAD_CONTEXT_PLATFORM_linux_x86_64) && defined(BTHREAD_CONTEXT_COMPILER_gcc)
 __asm (
 ".text\n"
@@ -341,8 +350,8 @@ __asm (
 ".type bthread_jump_fcontext,@function\n"
 ".align 16\n"
 "bthread_jump_fcontext:\n"
-"    pushq  %rbp  \n"
-"    pushq  %rbx  \n"
+"    pushq  %rbp  \n"         // Save cur coroutine's stack base pointer. Note that the return address, i.e., the addr of next inst that would be executed when cur coroutine is resumed, is above the saved rbp in the stack.
+"    pushq  %rbx  \n"         // The multiple pushq are saving the context of the cur coroutine in its stack.
 "    pushq  %r15  \n"
 "    pushq  %r14  \n"
 "    pushq  %r13  \n"
@@ -353,23 +362,23 @@ __asm (
 "    stmxcsr  (%rsp)\n"
 "    fnstcw   0x4(%rsp)\n"
 "1:\n"
-"    movq  %rsp, (%rdi)\n"
-"    movq  %rsi, %rsp\n"
+"    movq  %rsp, (%rdi)\n"     // Save cur coroutine's stack top to &from->context
+"    movq  %rsi, %rsp\n"       // Load next coroutine's stack top to rsp, i.e., switch to new coroutine's stack here.
 "    cmp  $0, %rcx\n"
 "    je  2f\n"
 "    ldmxcsr  (%rsp)\n"
 "    fldcw  0x4(%rsp)\n"
 "2:\n"
 "    leaq  0x8(%rsp), %rsp\n"
-"    popq  %r12  \n"
+"    popq  %r12  \n"          // Now it's in new resumed coroutine's stack, and the popq are restoring context of the new coroutine.
 "    popq  %r13  \n"
 "    popq  %r14  \n"
 "    popq  %r15  \n"
 "    popq  %rbx  \n"
 "    popq  %rbp  \n"
-"    popq  %r8\n"
+"    popq  %r8\n"             // Load the addr of next inst the resumed coroutine will execute. For non main coroutine, it's the entry fn task_runner().
 "    movq  %rdx, %rax\n"
-"    movq  %rdx, %rdi\n"
+"    movq  %rdx, %rdi\n"      // rdx contains the arg passed to the coroutine entry fn task_runner().
 "    jmp  *%r8\n"
 ".size bthread_jump_fcontext,.-bthread_jump_fcontext\n"
 ".section .note.GNU-stack,\"\",%progbits\n"

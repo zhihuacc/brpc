@@ -129,6 +129,7 @@ inline void return_stack(ContextualStack* s) {
 }
 
 inline void jump_stack(ContextualStack* from, ContextualStack* to) {
+    //zh the 3rd arg is passed to coroutine's entry function which is task_runner().
     bthread_jump_fcontext(&from->context, to->context, 0/*not skip remained*/);
 }
 

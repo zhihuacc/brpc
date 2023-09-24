@@ -780,6 +780,7 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
             "fix it before starting server";
         return -1;
     }
+    //zh bthread_start_background() is called in InitializeOnce()
     if (InitializeOnce() != 0) {
         LOG(ERROR) << "Fail to initialize Server[" << version() << ']';
         return -1;
@@ -909,6 +910,7 @@ int Server::StartInternal(const butil::EndPoint& endpoint,
                 break;
             }
         }
+        //zh why need sleep ? Why not just join ?
         // Wait until all created bthreads finish the init function.
         for (size_t i = 0; i < ncreated; ++i) {
             while (!init_args[i].done) {
