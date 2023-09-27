@@ -465,6 +465,7 @@ Socket::Socket(Forbidden)
     , _stream_set(NULL)
     , _total_streams_unconsumed_size(0)
     , _ninflight_app_health_check(0)
+    , _http_request_method(HTTP_METHOD_GET)
 {
     CreateVarsOnce();
     pthread_mutex_init(&_id_wait_list_mutex, NULL);
@@ -958,7 +959,7 @@ int Socket::SetFailed(int error_code, const char* error_fmt, ...) {
             // Do health-checking even if we're not connected before, needed
             // by Channel to revive never-connected socket when server side
             // comes online.
-            if (_health_check_interval_s > 0) {
+            if (HCEnabled()) {
                 bool expect = false;
                 if (_hc_started.compare_exchange_strong(expect,
                                                         true,
