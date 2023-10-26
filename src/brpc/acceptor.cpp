@@ -91,6 +91,7 @@ int Acceptor::StartAccept(int listened_fd, int idle_timeout_sec,
     options.fd = listened_fd;
     options.user = this;
     options.on_edge_triggered_events = OnNewConnections;
+    //zh Create()->ResetFileDescriptor() will start a bthread to do IO event loop.
     if (Socket::Create(options, &_acception_id) != 0) {
         // Close-idle-socket thread will be stopped inside destructor
         LOG(FATAL) << "Fail to create _acception_id";

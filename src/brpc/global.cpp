@@ -392,6 +392,7 @@ static void GlobalInitializeOrDieImpl() {
         exit(1);
     }
 
+    //zh In ProcessRpcRequest(), user method will be called by CallMethod() of pb.
     // Protocols
     Protocol baidu_protocol = { ParseRpcMessage,
                                 SerializeRequestDefault, PackRpcRequest,
@@ -582,6 +583,7 @@ static void GlobalInitializeOrDieImpl() {
         exit(1);
     }
 
+    //zh server side is in Acceptor
     std::vector<Protocol> protocols;
     ListProtocols(&protocols);
     for (size_t i = 0; i < protocols.size(); ++i) {

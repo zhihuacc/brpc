@@ -224,6 +224,10 @@ void EventDispatcher::Run() {
                 || (e[i].events & has_epollrdhup)
 #endif
                 ) {
+                //zh In StartInputEvent(), a bthread is issued to execute ProcessEvent() to process new connections or Rpc requests.
+                //  it will finally call Acceptor::OnNewConnections() or InputMessenger::OnNewMessages().
+                //  InputMessenger::OnNewMessages() will parse and process Rpc requests and call user methods via pb.
+
                 // We don't care about the return value.
                 Socket::StartInputEvent(e[i].data.u64, e[i].events,
                                         _consumer_thread_attr);

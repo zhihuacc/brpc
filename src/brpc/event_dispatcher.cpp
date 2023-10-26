@@ -46,6 +46,7 @@ void InitializeGlobalDispatchers() {
     for (int i = 0; i < FLAGS_event_dispatcher_num; ++i) {
         const bthread_attr_t attr = FLAGS_usercode_in_pthread ?
             BTHREAD_ATTR_PTHREAD : BTHREAD_ATTR_NORMAL;
+        //zh Start() will start a bthread to do epoll loop which is in EventDispatcher.RunThis().
         CHECK_EQ(0, g_edisp[i].Start(&attr));
     }
     // This atexit is will be run before g_task_control.stop() because above
