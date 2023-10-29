@@ -408,12 +408,13 @@ int bthread_id_create_ranged(bthread_id_t* id, void* data,
 }
 
 int bthread_id_lock_and_reset_range_verbose(
-    // first_ver :
+    //zh first_ver :
     // unlocked_ver : first_ver ~ locked_ver - 1
     // locked_ver : first_ver + range
     // contended_ver : locked_ver + 1
     // unlockable_ver/last_ver: contented_ver + 1 = locked_ver + 2
     // end_ver : last_ver + 1 = locked_ver + 3
+    // http://heavensheep.xyz/?p=267
     bthread_id_t id, void **pdata, int range, const char *location) {
     bthread::Id* const meta = address_resource(bthread::get_slot(id));
     if (!meta) {
