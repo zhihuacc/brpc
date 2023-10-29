@@ -153,12 +153,14 @@ BAIDU_CASSERT(sizeof(Id) % 64 == 0, sizeof_Id_must_align);
 typedef butil::ResourceId<Id> IdResourceId;
 
 inline bthread_id_t make_id(uint32_t version, IdResourceId slot) {
+    //zh Here is a naive assumption that the Id pool has no more than 2^32 ids, however, no way to guarantee this.
     const bthread_id_t tmp =
         { (((uint64_t)slot.value) << 32) | (uint64_t)version };
     return tmp;
 }
 
 inline IdResourceId get_slot(bthread_id_t id) {
+    //zh Here is a naive assumption that the Id pool has no more than 2^32 ids, however, no way to guarantee this.
     const IdResourceId tmp = { (id.value >> 32) };
     return tmp;
 }
@@ -339,6 +341,10 @@ static int id_create_impl(
             *butex = 1;
         }
         *meta->join_butex = *butex;
+        //zh If this Id slot is reused, i.e., returned and re-acquired again, 
+        //  then *butex at this moment should be the end_ver of the old Id.
+        //  As a new Id, first_ver is now set to old Id's end_ver, 
+        //  i.e., it's distinguishable as increaing first_ver and locked_ver.
         meta->first_ver = *butex;
         meta->locked_ver = *butex + 1;
         *id = make_id(*butex, slot);
@@ -402,6 +408,12 @@ int bthread_id_create_ranged(bthread_id_t* id, void* data,
 }
 
 int bthread_id_lock_and_reset_range_verbose(
+    // first_ver :
+    // unlocked_ver : first_ver ~ locked_ver - 1
+    // locked_ver : first_ver + range
+    // contended_ver : locked_ver + 1
+    // unlockable_ver/last_ver: contented_ver + 1 = locked_ver + 2
+    // end_ver : last_ver + 1 = locked_ver + 3
     bthread_id_t id, void **pdata, int range, const char *location) {
     bthread::Id* const meta = address_resource(bthread::get_slot(id));
     if (!meta) {
@@ -435,6 +447,8 @@ int bthread_id_lock_and_reset_range_verbose(
             }
             return 0;
         } else if (*butex != meta->unlockable_ver()) {
+            //zh This if-cond equals *butex == meta->locked_ver ?
+            //  Trying to lock a locked id means it's contended.
             *butex = meta->contended_ver();
             uint32_t expected_ver = *butex;
             meta->mutex.unlock();
@@ -445,6 +459,7 @@ int bthread_id_lock_and_reset_range_verbose(
             }
             meta->mutex.lock();
         } else { // bthread_id_about_to_destroy was called.
+            //zh This cond equals *butex == meta->unlockable_ver()
             meta->mutex.unlock();
             return EPERM;
         }

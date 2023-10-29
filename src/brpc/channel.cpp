@@ -438,7 +438,12 @@ void Channel::CallMethod(const google::protobuf::MethodDescriptor* method,
     if (_options.enable_circuit_breaker) {
         cntl->add_flag(Controller::FLAGS_ENABLED_CIRCUIT_BREAKER);
     }
+
+    //zh callid() will invoke bthread_id_create2() which set locked_ver as first_ver + 1.
+    //  This callid represent an RPC call. A RPC call may issue multiple retry calls.
+    //  Each retry call will be versioned starting from this correlation_id.
     const CallId correlation_id = cntl->call_id();
+    //zh This will set locked_ver as first_ver + range.
     const int rc = bthread_id_lock_and_reset_range(
                     correlation_id, NULL, 2 + cntl->max_retry());
     if (rc != 0) {
